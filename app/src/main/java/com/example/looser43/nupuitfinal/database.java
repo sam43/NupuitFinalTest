@@ -61,7 +61,7 @@ public class database extends SQLiteOpenHelper {
         return res;
     }
 
-    public int tableExists(){
+/*    public int tableExists(){
       //  boolean isTableExists(SQLiteDatabase db, String tableName)
        SQLiteDatabase db = this.getWritableDatabase();
         Cursor cursor = db.rawQuery("SELECT  * FROM " + TABLE_NAME,null);
@@ -69,6 +69,6 @@ public class database extends SQLiteOpenHelper {
             cursor.close();
             return count;
 
-    }
+    }*/
 }
 

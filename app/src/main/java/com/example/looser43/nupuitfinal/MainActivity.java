@@ -20,6 +20,7 @@ import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {RecyclerView rvContacts;
     AllContactsAdapter adapter;
+    database myDB;
     ArrayList<ContactListItem>list;
     Button loadmore;
     int state = 0;
@@ -28,7 +29,7 @@ public class MainActivity extends AppCompatActivity {RecyclerView rvContacts;
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        myDB = new database(this);
 
         list = new ArrayList<>();
         rvContacts = (RecyclerView)findViewById(R.id.contact_list_recyclerview);
@@ -59,6 +60,8 @@ public class MainActivity extends AppCompatActivity {RecyclerView rvContacts;
 
             phoneCursor.close();
             list.add(new ContactListItem(name,phoneNumber));
+            myDB.addContact(name,phoneNumber);
+            myDB.getAllData();
 
         }
         adapter = new AllContactsAdapter(generateSublist(state),getLayoutInflater());
