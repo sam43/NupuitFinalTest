@@ -1,5 +1,6 @@
 package com.example.looser43.nupuitfinal;
 
+import android.Manifest;
 import android.app.LoaderManager;
 import android.content.ContentResolver;
 import android.content.CursorLoader;
@@ -9,194 +10,139 @@ import android.database.Cursor;
 import android.os.Build;
 import android.os.Handler;
 import android.provider.ContactsContract;
+import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
+import android.view.View;
+import android.widget.Button;
 import android.widget.Toast;
 
 import java.util.ArrayList;
-import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<Cursor>{
-
-    RecyclerView rvContacts;
-    database myDB;
-    Boolean permission=false;
-    int exist;
-    Handler h;
-    private String mOrderBy = ContactsContract.Contacts.DISPLAY_NAME_PRIMARY;
-    public static final int MY_PERMISSIONS_REQUEST_READ_CONTACTS = 250;
+public class MainActivity extends AppCompatActivity {RecyclerView rvContacts;
+    AllContactsAdapter adapter;
+    ArrayList<ContactListItem>list;
+    Button loadmore;
+    int state = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        myDB = new database(this);
-        exist = myDB.tableExists();
 
-        rvContacts = (RecyclerView) findViewById(R.id.contact_list_recyclerview);
 
-        rvContacts.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                super.onScrolled(recyclerView, dx, dy);
-            }
-        });
-
-        if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            permission = checkContactsPermission();
-            if(permission){
-                if(exist==0)
-                {
-                    getLoaderManager().initLoader(1, null, this);
-                    displayAllContacts();
-                }
-            }
-        }
-        else {
-            if(exist == 0) {
-                getLoaderManager().initLoader(1, null, this);
-                displayAllContacts();
-            }
-        }
-
-        displayAllContacts();
-
-    }
-
-    private void displayAllContacts() {
-
-        //it will call constructor of databae class.
-        // so the db will get created and also a table
-        List<ContactListItem> contactList = new ArrayList<>();
-        ContactListItem contactListItem;
-
-        Cursor c = myDB.getAllData();
-        if(c!=null && c.getCount()>0)
-
-        {
-            while (c.moveToNext()) {
-
-                String name = c.getString(1);
-                String phoneNo = c.getString(0);
-                contactListItem = new ContactListItem();
-                contactListItem.setContactName(name);
-                contactListItem.setContactNumber(phoneNo);
-                contactList.add(contactListItem);
-            }
-
-        }
-
-        AllContactsAdapter contactAdapter = new AllContactsAdapter(contactList, getApplicationContext());
+        list = new ArrayList<>();
+        rvContacts = (RecyclerView)findViewById(R.id.contact_list_recyclerview);
         rvContacts.setLayoutManager(new LinearLayoutManager(this));
-        rvContacts.setAdapter(contactAdapter);
-    }
+        rvContacts.hasFixedSize();
+        loadmore = (Button)findViewById(R.id.load_more);
+
+        getPermissionToReadUserContacts();
+        rvContacts.setAdapter(adapter);
+        ContentResolver contentResolver = getContentResolver();
+        Cursor cursor=contentResolver.query(ContactsContract.Contacts.CONTENT_URI,null,null,null,ContactsContract.Contacts.DISPLAY_NAME+" ASC");
 
 
-    @Override
-    public Loader<Cursor> onCreateLoader(int i, Bundle bundle) {
-        if(i==1) {
-            return new CursorLoader(this, ContactsContract.Contacts.CONTENT_URI, null, null, null,"upper("+ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + ") ASC");
+        while(cursor.moveToNext()){
+            String id = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts._ID));
+            String name = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME));
+
+            Cursor phoneCursor = contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                    null,
+                    ContactsContract.CommonDataKinds.Phone.CONTACT_ID+"=?",
+                    new String[]{id},
+                    null);
+
+            String phoneNumber = "";
+
+            if(phoneCursor.moveToFirst())
+                phoneNumber = phoneCursor.getString(phoneCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
+
+            phoneCursor.close();
+            list.add(new ContactListItem(name,phoneNumber));
+
         }
-        return null;
-    }
+        adapter = new AllContactsAdapter(generateSublist(state),getLayoutInflater());
+        rvContacts.setLayoutManager(new LinearLayoutManager(this));
+        rvContacts.setAdapter(adapter);
 
-    @Override
-    public void onLoadFinished(Loader<Cursor> loader, Cursor cursor) {
-        if (cursor != null && cursor.getCount() > 0) {
-            while (cursor.moveToNext()) {
-
-                int hasPhoneNumber = Integer.parseInt(cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts.HAS_PHONE_NUMBER)));
-                if (hasPhoneNumber > 0) {
-                    String id = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts._ID));
-                    String name = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY));
-                    ContentResolver contentResolver = getContentResolver();
-                    Cursor phoneCursor = contentResolver.query(
-                            ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                            null,
-                            ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
-                            new String[]{id},
-                            null);
-                    if (phoneCursor.moveToNext()) {
-                        String phoneNumber = phoneCursor.getString(phoneCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
-                        phoneCursor.close();
-                        myDB.addContact(name,phoneNumber);
-                    }
-                }
-            }
-            displayAllContacts();
-        }
-    }
-
-    @Override
-    public void onLoaderReset(Loader<Cursor> loader) {
-
-        rvContacts.addOnScrollListener(new RecyclerView.OnScrollListener() {
+        loadmore.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onScrolled(RecyclerView recyclerView, int dx, int dy) {
-                super.onScrolled(recyclerView, dx, dy);
+            public void onClick(View v) {
+                adapter.addData(generateSublist(state));
             }
         });
-        //Handler will Load more data into the recyclerview list
-        h = new Handler();
-        h.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                // Removes the loading item
-                //Load data
 
-                getLoaderManager().restartLoader(1,null, null);
-            }
-        }, 5000);
+
+
+
+
+
     }
-    public boolean checkContactsPermission() {
 
-        if (ContextCompat.checkSelfPermission(this,
-                android.Manifest.permission.READ_CONTACTS)
+    private ArrayList<ContactListItem> generateSublist(int state){
+        ArrayList<ContactListItem>list1 = new ArrayList<>();
+        int i ;
+        for(i=state;i<list.size()&&i<state+10;i++)
+            list1.add(list.get(i));
+
+        this.state=i;
+        return list1;
+    }
+
+    private static final int READ_CONTACTS_PERMISSIONS_REQUEST = 1;
+
+    // Called when the user is performing an action which requires the app to read the
+    // user's contacts
+    public void getPermissionToReadUserContacts() {
+        // 1) Use the support library version ContextCompat.checkSelfPermission(...) to avoid
+        // checking the build version since Context.checkSelfPermission(...) is only available
+        // in Marshmallow
+        // 2) Always check for permission (even if permission has already been granted)
+        // since the user can revoke permissions at any time through Settings
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS)
                 != PackageManager.PERMISSION_GRANTED) {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    android.Manifest.permission.READ_CONTACTS)) {
-                ActivityCompat.requestPermissions(this,
-                        new String[]{android.Manifest.permission.READ_CONTACTS},
-                        MY_PERMISSIONS_REQUEST_READ_CONTACTS);
-            } else {
-                ActivityCompat.requestPermissions(this,
-                        new String[]{android.Manifest.permission.READ_CONTACTS},
-                        MY_PERMISSIONS_REQUEST_READ_CONTACTS);
-            }
-            return false;
-        } else {
-            return true;
-        }
 
+            // The permission is NOT already granted.
+            // Check if the user has been asked about this permission already and denied
+            // it. If so, we want to give more explanation about why the permission is needed.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (shouldShowRequestPermissionRationale(
+                        Manifest.permission.READ_CONTACTS)) {
+                    // Show our own UI to explain to the user why we need to read the contacts
+                    // before actually requesting the permission and showing the default UI
+                }
+            }
+
+            // Fire off an async request to actually get the permission
+            // This will show the standard permission request dialog UI
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                requestPermissions(new String[]{Manifest.permission.READ_CONTACTS},
+                        READ_CONTACTS_PERMISSIONS_REQUEST);
+            }
+        }
     }
+
+    // Callback with the request from calling requestPermissions(...)
     @Override
     public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
-        switch (requestCode) {
-            case MY_PERMISSIONS_REQUEST_READ_CONTACTS: {
-                if (grantResults.length > 0
-                        && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    if (ContextCompat.checkSelfPermission(this,
-                            android.Manifest.permission.READ_CONTACTS)
-                            == PackageManager.PERMISSION_GRANTED) {
-
-                        exist = myDB.tableExists();
-                        if(exist==0)
-                        {
-                            getLoaderManager().initLoader(1, null, this);
-                        }
-                        return;
-                    }
-                } else {
-                    Toast.makeText(this, "permission denied",
-                            Toast.LENGTH_LONG).show();
-                }
-                return;
+                                           @NonNull String permissions[],
+                                           @NonNull int[] grantResults) {
+        // Make sure it's our original READ_CONTACTS request
+        if (requestCode == READ_CONTACTS_PERMISSIONS_REQUEST) {
+            if (grantResults.length == 1 &&
+                    grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Read Contacts permission granted", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(this, "Read Contacts permission denied", Toast.LENGTH_SHORT).show();
             }
+        } else {
+            super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         }
     }
+
 }

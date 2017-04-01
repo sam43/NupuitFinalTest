@@ -6,8 +6,13 @@ package com.example.looser43.nupuitfinal;
 
 public class ContactListItem {
     private String ContactImage;
-    private String ContactName;
-    private String ContactNumber;
+    public String ContactName;
+    public String ContactNumber;
+
+    public ContactListItem(String name, String phoneNumber) {
+        this.ContactName = name;
+        this.ContactNumber = phoneNumber;
+    }
 
     public String getContactImage() {
         return ContactImage;

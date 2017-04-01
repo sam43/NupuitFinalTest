@@ -14,12 +14,15 @@
         android:layout_height="match_parent"
         android:layout_centerHorizontal="true"
         android:id="@+id/contact_list_recyclerview"
-        android:layout_below="@+id/header_layout">
+        android:layout_below="@+id/header_layout"/>
 
-        <!--<include layout="@layout/loading_button"-->
-            <!--android:id="@+id/load_more"/>-->
 
-    </android.support.v7.widget.RecyclerView>
+    <Button
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity=""
+        android:text="Load More"
+        android:id="@+id/load_more"/>
 
 
 </RelativeLayout>
