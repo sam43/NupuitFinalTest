@@ -1,17 +1,12 @@
 package com.example.looser43.nupuitfinal;
 
 import android.Manifest;
-import android.app.LoaderManager;
 import android.content.ContentResolver;
-import android.content.CursorLoader;
-import android.content.Loader;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.os.Build;
-import android.os.Handler;
 import android.provider.ContactsContract;
 import android.support.annotation.NonNull;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -41,7 +36,7 @@ public class MainActivity extends AppCompatActivity {RecyclerView rvContacts;
         rvContacts.hasFixedSize();
         loadmore = (Button)findViewById(R.id.load_more);
 
-        getPermissionToReadUserContacts();
+        CheckForUserPermission();
         rvContacts.setAdapter(adapter);
         ContentResolver contentResolver = getContentResolver();
         Cursor cursor=contentResolver.query(ContactsContract.Contacts.CONTENT_URI,null,null,null,ContactsContract.Contacts.DISPLAY_NAME+" ASC");
@@ -76,29 +71,28 @@ public class MainActivity extends AppCompatActivity {RecyclerView rvContacts;
                 adapter.addData(generateSublist(state));
             }
         });
-
-
-
-
-
-
     }
 
     private ArrayList<ContactListItem> generateSublist(int state){
-        ArrayList<ContactListItem>list1 = new ArrayList<>();
-        int i ;
-        for(i=state;i<list.size()&&i<state+10;i++)
-            list1.add(list.get(i));
+        ArrayList<ContactListItem> arrayList = new ArrayList<>();
+
+
+        int i;
+        for(i=state;i<list.size()&&i<state+10;i++){
+
+            arrayList.add(list.get(i));
+            loadmore.setVisibility(View.VISIBLE);
+        }
 
         this.state=i;
-        return list1;
+        return arrayList;
     }
 
     private static final int READ_CONTACTS_PERMISSIONS_REQUEST = 1;
 
     // Called when the user is performing an action which requires the app to read the
     // user's contacts
-    public void getPermissionToReadUserContacts() {
+    public void CheckForUserPermission() {
         // 1) Use the support library version ContextCompat.checkSelfPermission(...) to avoid
         // checking the build version since Context.checkSelfPermission(...) is only available
         // in Marshmallow
